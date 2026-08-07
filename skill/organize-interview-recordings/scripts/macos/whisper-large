@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+RUNTIME_ROOT="${INTERVIEW_ASR_ROOT:-${HOME}/.local/share/interview-asr}"
+WHISPER_ENV="${RUNTIME_ROOT}/whisper/venv"
+WHISPER_CLI="${WHISPER_ENV}/bin/mlx_whisper"
+MODEL="${WHISPER_MODEL:-mlx-community/whisper-large-v3-mlx}"
+LANGUAGE="${WHISPER_LANGUAGE:-en}"
+TASK="${WHISPER_TASK:-transcribe}"
+OUTPUT_FORMAT="${WHISPER_OUTPUT_FORMAT:-all}"
+WORD_TIMESTAMPS="${WHISPER_WORD_TIMESTAMPS:-True}"
+VERBOSE="${WHISPER_VERBOSE:-True}"
+INITIAL_PROMPT="${WHISPER_INITIAL_PROMPT:-}"
+
+show_help() {
+  cat <<'EOF'
+Usage: whisper-large <media-file> [output-directory]
+       whisper-large --help | --version
+
+Environment variables:
+  WHISPER_MODEL, WHISPER_LANGUAGE, WHISPER_INITIAL_PROMPT
+  WHISPER_OUTPUT_FORMAT, WHISPER_OUTPUT_NAME, WHISPER_TASK
+EOF
+}
+
+case "${1:-}" in
+  --help|-h)
+    show_help
+    exit 0
+    ;;
+  --version|-V)
+    "${WHISPER_ENV}/bin/python" -c "import importlib.metadata as m; print('mlx-whisper ' + m.version('mlx-whisper')); print('mlx ' + m.version('mlx'))"
+    echo "model ${MODEL}"
+    exit 0
+    ;;
+esac
+
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  show_help >&2
+  exit 2
+fi
+
+INPUT_FILE="$1"
+if [[ ! -f "${INPUT_FILE}" ]]; then
+  echo "Input file not found: ${INPUT_FILE}" >&2
+  exit 1
+fi
+if [[ ! -x "${WHISPER_CLI}" ]]; then
+  echo "Whisper runtime not found: ${WHISPER_ENV}" >&2
+  exit 1
+fi
+if ! command -v ffmpeg >/dev/null 2>&1; then
+  echo "FFmpeg is required. Install it with: brew install ffmpeg" >&2
+  exit 1
+fi
+
+INPUT_NAME="$(basename -- "${INPUT_FILE}")"
+INPUT_STEM="${INPUT_NAME%.*}"
+RUN_TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
+OUTPUT_DIR="${2:-${PWD}/whisper-output/${INPUT_STEM}_${RUN_TIMESTAMP}}"
+OUTPUT_NAME="${WHISPER_OUTPUT_NAME:-${INPUT_STEM}_whisper-large-v3}"
+mkdir -p "${OUTPUT_DIR}"
+
+ARGS=(
+  "${INPUT_FILE}"
+  --model "${MODEL}"
+  --output-dir "${OUTPUT_DIR}"
+  --output-name "${OUTPUT_NAME}"
+  --output-format "${OUTPUT_FORMAT}"
+  --task "${TASK}"
+  --temperature 0
+  --condition-on-previous-text True
+  --word-timestamps "${WORD_TIMESTAMPS}"
+  --hallucination-silence-threshold 2.0
+  --verbose "${VERBOSE}"
+)
+
+if [[ "${LANGUAGE}" != "auto" ]]; then ARGS+=(--language "${LANGUAGE}"); fi
+if [[ -n "${INITIAL_PROMPT}" ]]; then ARGS+=(--initial-prompt "${INITIAL_PROMPT}"); fi
+
+echo "Model: ${MODEL}"
+echo "Input: ${INPUT_FILE}"
+echo "Output: ${OUTPUT_DIR}"
+echo "Language: ${LANGUAGE}"
+exec "${WHISPER_CLI}" "${ARGS[@]}"

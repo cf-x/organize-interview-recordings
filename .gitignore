@@ -1,0 +1,55 @@
+# Secrets and local configuration
+.env
+.env.*
+*.pem
+*.key
+*token*
+*credential*
+feishu-auth-qr.png
+
+# Recordings and extracted audio
+*.mp3
+*.mp4
+*.m4a
+*.mkv
+*.mov
+*.wav
+*.aac
+*.flac
+*.webm
+
+# Transcripts, private notes, and backups
+asr-output/
+whisper-output/
+transcripts/
+recordings/
+notes/
+backups/
+backup-*/
+*.srt
+*.vtt
+*.tsv
+
+# Model weights and caches
+models/
+*.safetensors
+*.bin
+*.gguf
+*.npz
+.cache/
+huggingface/
+
+# Python and editors
+.venv*/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Generated audit fixtures
+tmp/

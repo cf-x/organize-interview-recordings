@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+RUNTIME_ROOT="${INTERVIEW_ASR_ROOT:-${HOME}/.local/share/interview-asr}"
+QWEN_ENV="${RUNTIME_ROOT}/qwen/venv"
+ASR_CLI="${QWEN_ENV}/bin/mlx-qwen3-asr"
+HF_CLI="${QWEN_ENV}/bin/hf"
+MODEL="${QWEN_ASR_MODEL:-Qwen/Qwen3-ASR-1.7B}"
+LANGUAGE="${QWEN_ASR_LANGUAGE:-Chinese}"
+CONTEXT="${QWEN_ASR_CONTEXT:-}"
+OUTPUT_FORMAT="${QWEN_ASR_OUTPUT_FORMAT:-all}"
+TIMESTAMPS="${QWEN_ASR_TIMESTAMPS:-True}"
+DTYPE="${QWEN_ASR_DTYPE:-float16}"
+VERBOSE="${QWEN_ASR_VERBOSE:-False}"
+DIARIZE="${QWEN_ASR_DIARIZE:-False}"
+NUM_SPEAKERS="${QWEN_ASR_NUM_SPEAKERS:-}"
+MIN_SPEAKERS="${QWEN_ASR_MIN_SPEAKERS:-1}"
+MAX_SPEAKERS="${QWEN_ASR_MAX_SPEAKERS:-8}"
+
+show_help() {
+  cat <<'EOF'
+Usage: qwen3-asr-large <media-file> [output-directory]
+       qwen3-asr-large --help | --version | --doctor
+
+Environment variables:
+  QWEN_ASR_MODEL, QWEN_ASR_LANGUAGE, QWEN_ASR_CONTEXT
+  QWEN_ASR_OUTPUT_FORMAT, QWEN_ASR_TIMESTAMPS, QWEN_ASR_DTYPE
+  QWEN_ASR_DIARIZE, QWEN_ASR_NUM_SPEAKERS
+EOF
+}
+
+load_diarization_auth() {
+  if [[ -n "${PYANNOTE_AUTH_TOKEN:-}" || -n "${HUGGINGFACE_TOKEN:-}" || -n "${HF_TOKEN:-}" ]]; then
+    return
+  fi
+  if [[ -x "${HF_CLI}" ]]; then
+    local cached_token
+    cached_token="$("${HF_CLI}" auth token 2>/dev/null || true)"
+    if [[ -n "${cached_token}" ]]; then
+      export PYANNOTE_AUTH_TOKEN="${cached_token}"
+    fi
+  fi
+}
+
+case "${1:-}" in
+  --help|-h)
+    show_help
+    exit 0
+    ;;
+  --version|-V)
+    "${QWEN_ENV}/bin/python" -c "import importlib.metadata as m; print('mlx-qwen3-asr ' + m.version('mlx-qwen3-asr')); print('mlx ' + m.version('mlx'))"
+    echo "model ${MODEL}"
+    exit 0
+    ;;
+  --doctor)
+    load_diarization_auth
+    exec "${ASR_CLI}" --doctor
+    ;;
+esac
+
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  show_help >&2
+  exit 2
+fi
+
+INPUT_FILE="$1"
+if [[ ! -f "${INPUT_FILE}" ]]; then
+  echo "Input file not found: ${INPUT_FILE}" >&2
+  exit 1
+fi
+if [[ ! -x "${ASR_CLI}" ]]; then
+  echo "Qwen runtime not found: ${QWEN_ENV}" >&2
+  exit 1
+fi
+if ! command -v ffmpeg >/dev/null 2>&1; then
+  echo "FFmpeg is required. Install it with: brew install ffmpeg" >&2
+  exit 1
+fi
+
+INPUT_NAME="$(basename -- "${INPUT_FILE}")"
+INPUT_STEM="${INPUT_NAME%.*}"
+RUN_TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
+OUTPUT_DIR="${2:-${PWD}/asr-output/${INPUT_STEM}_qwen3_${RUN_TIMESTAMP}}"
+mkdir -p "${OUTPUT_DIR}"
+
+ARGS=(
+  "${INPUT_FILE}"
+  --model "${MODEL}"
+  --output-dir "${OUTPUT_DIR}"
+  --output-format "${OUTPUT_FORMAT}"
+  --dtype "${DTYPE}"
+)
+
+if [[ "${LANGUAGE}" != "auto" ]]; then ARGS+=(--language "${LANGUAGE}"); fi
+if [[ -n "${CONTEXT}" ]]; then ARGS+=(--context "${CONTEXT}"); fi
+if [[ "${TIMESTAMPS}" == "True" ]]; then ARGS+=(--timestamps); fi
+if [[ "${VERBOSE}" == "True" ]]; then ARGS+=(--verbose); fi
+if [[ "${DIARIZE}" == "True" ]]; then
+  load_diarization_auth
+  ARGS+=(--diarize)
+  if [[ -n "${NUM_SPEAKERS}" ]]; then
+    ARGS+=(--num-speakers "${NUM_SPEAKERS}")
+  else
+    ARGS+=(--min-speakers "${MIN_SPEAKERS}" --max-speakers "${MAX_SPEAKERS}")
+  fi
+fi
+
+echo "Model: ${MODEL}"
+echo "Input: ${INPUT_FILE}"
+echo "Output: ${OUTPUT_DIR}"
+echo "Language: ${LANGUAGE}"
+exec "${ASR_CLI}" "${ARGS[@]}"
