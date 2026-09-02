@@ -1,7 +1,7 @@
 interface:
   display_name: "面试录屏问答整理"
-  short_description: "跨平台本地转写面试录屏，整理问答并标注 AI 来源"
-  default_prompt: "Use $organize-interview-recordings to transcribe local interview recordings, preserve evidence, and create structured review notes with clearly marked AI additions."
+  short_description: "跨平台本地转写面试录屏，语义去重并整理问答"
+  default_prompt: "Use $organize-interview-recordings to transcribe local interview recordings, preserve evidence, create structured review notes with clearly marked AI additions, and deduplicate reusable questions into a local cross-session collection."
 
 policy:
   allow_implicit_invocation: false

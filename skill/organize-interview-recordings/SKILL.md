@@ -1,6 +1,6 @@
 ---
 name: organize-interview-recordings
-description: 本地批量整理面试录屏、录音和面试笔记：按语音主导语言调用本机 ASR（中文优先 Qwen3-ASR，英文优先 Whisper large-v3）转写 MP4/MKV/MOV/M4A/WAV，复用同场笔记，去除转写噪声，只保留有复习价值的面试问题，将录音证据与 AI 优化/重建分开，为缺失实验细节提供明确标注的合理范围，并生成每场复盘、总索引和完整性审计；仅在用户明确要求且本机已经配置兼容工具时增量同步到飞书。用户提到面试录屏转写、本地 ASR/Whisper 面试复盘、整理面试问题、一问一答面经、批量总结面试、从录音恢复问答或同步/优化飞书面试笔记时使用。
+description: 本地批量整理面试录屏、录音和面试笔记：按语音主导语言调用本机 ASR（中文优先 Qwen3-ASR，英文优先 Whisper large-v3）转写 MP4/MKV/MOV/M4A/WAV，复用同场笔记，去除转写噪声，将录音证据与 AI 优化/重建分开，并把有复习价值的问题按项目、技术、代码和 HR 等类别语义去重后增量沉淀；生成每场复盘、总索引和完整性审计，仅在用户明确要求且本机已经配置兼容工具时增量同步到飞书。用户提到面试录屏转写、本地 ASR/Whisper 面试复盘、整理面试问题、一问一答面经、跨场面试去重题库、批量总结面试、从录音恢复问答或同步/优化飞书面试笔记时使用。
 ---
 
 # Organize Interview Recordings
@@ -17,15 +17,18 @@ description: 本地批量整理面试录屏、录音和面试笔记：按语音�
 6. Keep only questions useful for future interviews. Remove greetings, logistics chatter, repeated prompts, filler, transcription artifacts, and closing pleasantries unless they reveal a meaningful HR constraint.
 7. Treat online documents as a separate write surface. Update them only when the user requests online sync; prefer incremental edits and never overwrite or delete an online source by default.
 8. Mark every AI-generated answer, estimate, and reconstruction with the purple conventions in `references/output-standard.md`, locally and online.
-9. Never place recordings, transcripts, resumes, credentials, authorization URLs, QR codes, or model caches in a public repository.
+9. Treat cross-session collection documents as derived indexes. Keep complete evidence in the canonical session note, assign each semantic question to one primary collection document, and link instead of copying it into multiple categories.
+10. Write AI-generated answers for speaking. Use direct, natural language while preserving conditions, evidence, uncertainty, and project boundaries.
+11. Never place recordings, transcripts, resumes, credentials, authorization URLs, QR codes, local knowledge-base paths, personal identifiers, or model caches in a public repository.
 
-Read `references/output-standard.md` before writing or rewriting interview notes. Read `references/asr-runtime.md` before any transcription or runtime repair. Read `references/lark-sync.md` completely before any Feishu/Lark authentication, lookup, creation, or update.
+Read `references/output-standard.md` before writing or rewriting interview notes. Read `references/asr-runtime.md` before any transcription or runtime repair. Read `references/local-collection.md` before searching user-authorized local sources or updating a cross-session collection. Read `references/lark-sync.md` completely before any Feishu/Lark authentication, lookup, creation, or update.
 
 ## Workflow
 
 ### 1. Inventory before writing
 
 - Enumerate recordings, existing TXT/SRT/JSON transcripts, interview notes, resumes, project summaries, papers, internship notes, and interview-preparation documents.
+- Search only the active workspace and additional local roots explicitly authorized by the user. Treat external knowledge roots as read-only unless separately authorized.
 - Map each recording to one canonical note by date, organization, and round. Record note-only sessions separately.
 - Prefer `rg --files` and structured JSON/SRT parsing over ad hoc text extraction.
 - Inspect workspace instructions before modifying files.
@@ -67,6 +70,8 @@ Infer speaker roles from question/answer flow, but do not invent a historical an
 - Preserve weaknesses in `我的回答（整理）`; put corrections only in the AI section.
 - For candidate questions, use `我的问题`, `面试官回答`, and `AI 补充的更好问法/追问`.
 - Make optimized answers directly speakable: problem, decision, evidence, tradeoff, boundary, and next step.
+- Start with the answer or conclusion, then include only the reasoning and evidence the question needs. Prefer short sentences and explain uncommon terms on first use.
+- Remove report-style filler, promotional wording, metaphors, and analogies. Read the draft as spoken language and rewrite sentences that sound like a paper or memorized model answer.
 
 ### 6. Handle facts and missing experiment details
 
@@ -86,7 +91,14 @@ End every note with:
 
 For HR/career questions, cover business direction, team/manager, role ownership, transferable capability, constraints, and controllable next actions rather than relying only on salary, location, trend, or conversion rate.
 
-### 8. Sync online only when requested
+### 8. Update the local cross-session collection
+
+- Follow `references/local-collection.md`.
+- Keep one complete canonical note per interview, then route each retained question to exactly one primary collection document.
+- Deduplicate by tested capability and meaning, not merely identical wording. Merge source-session links and only genuinely new evidence, tradeoffs, or answer improvements.
+- Back up an existing collection document before changing it.
+
+### 9. Sync online only when requested
 
 - Follow `references/lark-sync.md`.
 - Do not install or configure an online connector merely because local notes were organized.
@@ -95,13 +107,14 @@ For HR/career questions, cover business direction, team/manager, role ownership,
 - Deduplicate by normalized question and meaning; write only genuinely new or improved blocks.
 - Perform writes serially, read back after each write, and verify purple AI provenance.
 
-### 9. Maintain the collection
+### 10. Maintain the collection
 
 - Update a master index with recording sessions, note-only sessions, transcription status, and links.
 - Update the project summary with runtime, output locations, backup path, exceptions, and documentation rules.
 - Keep note filenames stable unless the user explicitly requests renaming.
+- Record which primary collection document owns each retained semantic question.
 
-### 10. Audit before completion
+### 11. Audit before completion
 
 Run:
 
