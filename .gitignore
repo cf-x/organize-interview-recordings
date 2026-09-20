@@ -53,3 +53,12 @@ Thumbs.db
 
 # Generated audit fixtures
 tmp/
+
+# Private skill settings, state and workspace outputs
+local-settings.json
+.interview-state/
+面试笔记/
+面试题库/
+转写原文/
+处理记录/
+备份/

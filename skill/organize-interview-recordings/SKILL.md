@@ -1,125 +1,42 @@
 ---
 name: organize-interview-recordings
-description: 本地批量整理面试录屏、录音和面试笔记：按语音主导语言调用本机 ASR（中文优先 Qwen3-ASR，英文优先 Whisper large-v3）转写 MP4/MKV/MOV/M4A/WAV，复用同场笔记，去除转写噪声，将录音证据与 AI 优化/重建分开，并把有复习价值的问题按项目、技术、代码和 HR 等类别语义去重后增量沉淀；生成每场复盘、总索引和完整性审计，仅在用户明确要求且本机已经配置兼容工具时增量同步到飞书。用户提到面试录屏转写、本地 ASR/Whisper 面试复盘、整理面试问题、一问一答面经、跨场面试去重题库、批量总结面试、从录音恢复问答或同步/优化飞书面试笔记时使用。
+description: 本地转写面试录屏或录音，复用同场笔记，区分现场回答与 AI 优化，生成复盘并将问题增量去重到本地题库。用于面试录屏整理、问答恢复和跨场题库维护；仅在明确要求时同步飞书。
 ---
 
 # Organize Interview Recordings
 
-## Core rules
+## Invariants
 
-1. Keep every source recording, transcript, and original note. Back up notes before rewriting; never delete originals.
-2. Keep media local by default. Select the command by the host operating system and dominant spoken language; read `references/asr-runtime.md` before transcription.
-3. Reuse an existing note for the same interview instead of creating a competing document.
-4. Separate evidence from reconstruction:
-   - `我的回答（整理）` must remain faithful to the recording or original note.
-   - `AI 补充的更好回答/优化点` may repair wording, add missing reasoning, and estimate plausible ranges.
-5. Never present an AI estimate as a company log, historical quote, or exact result.
-6. Keep only questions useful for future interviews. Remove greetings, logistics chatter, repeated prompts, filler, transcription artifacts, and closing pleasantries unless they reveal a meaningful HR constraint.
-7. Treat online documents as a separate write surface. Update them only when the user requests online sync; prefer incremental edits and never overwrite or delete an online source by default.
-8. Mark every AI-generated answer, estimate, and reconstruction with the purple conventions in `references/output-standard.md`, locally and online.
-9. Treat cross-session collection documents as derived indexes. Keep complete evidence in the canonical session note, assign each semantic question to one primary collection document, and link instead of copying it into multiple categories.
-10. Write AI-generated answers for speaking. Use direct, natural language while preserving conditions, evidence, uncertainty, and project boundaries.
-11. Never place recordings, transcripts, resumes, credentials, authorization URLs, QR codes, local knowledge-base paths, personal identifiers, or model caches in a public repository.
+- Keep media local; preserve source recordings, raw transcripts and original notes. Back up only existing files that will change, before writing. New files have no pre-edit backup.
+- Reuse the canonical session note and stable filenames. Preserve historical mistakes in the recorded-answer field; correct them only in a visibly purple AI section.
+- Existing notes are reuse candidates, not stronger evidence than audio or video. Resolve disputed history from primary evidence; if unavailable, retain the conflict or `未保留完整回答`. Local AI-written material never becomes a verified fact merely by being saved.
+- AI answers use keyword-led bullets and plain Chinese. Preserve conditions, evidence and responsibility boundaries. No invented historical answers, default experiment gains, metaphors or decorative prose.
+- One primary collection owner per semantic question. Full history belongs in session notes; topic collections retain consolidated learning points and source links.
+- Search the workspace and user-authorized read-only roots only. An optional untracked `local-settings.json` beside this file can retain previously authorized roots and runtime command paths; it cannot grant new permission. Never publish it, recordings, notes, resumes, company material, private paths, credentials or authorization artifacts.
+- Online sync is a separate, explicitly requested action. No automatic connector setup or online writes during local work.
 
-Read `references/output-standard.md` before writing or rewriting interview notes. Read `references/asr-runtime.md` before any transcription or runtime repair. Read `references/local-collection.md` before searching user-authorized local sources or updating a cross-session collection. Read `references/lark-sync.md` completely before any Feishu/Lark authentication, lookup, creation, or update.
+## Choose the smallest workflow
 
-## Workflow
+Read each relevant reference once; execute helpers without loading their source unless debugging.
 
-### 1. Inventory before writing
+| Task | Read |
+| --- | --- |
+| New audio or transcription repair | [asr-runtime.md](references/asr-runtime.md); platform setup only if runtime is missing/broken |
+| Create or edit Q&A | [output-standard.md](references/output-standard.md) |
+| Retrieve project facts or update topic collections | [local-collection.md](references/local-collection.md) |
+| Incremental state, backups or helper commands | [incremental-workflow.md](references/incremental-workflow.md) |
+| Requested Feishu operation | [lark-sync.md](references/lark-sync.md) completely, then its required installed skills |
 
-- Enumerate recordings, existing TXT/SRT/JSON transcripts, interview notes, resumes, project summaries, papers, internship notes, and interview-preparation documents.
-- Search only the active workspace and additional local roots explicitly authorized by the user. Treat external knowledge roots as read-only unless separately authorized.
-- Map each recording to one canonical note by date, organization, and round. Record note-only sessions separately.
-- Prefer `rg --files` and structured JSON/SRT parsing over ad hoc text extraction.
-- Inspect workspace instructions before modifying files.
+An existing transcript does not require another ASR run. A wording edit does not require rebuilding all sessions or collections. A sync-only task does not require rewriting unchanged local notes.
 
-### 2. Back up the notes
+## Local execution
 
-- Copy every note in scope to a timestamped backup directory before rewriting.
-- Verify source and backup counts and filenames match.
-- Never put generated notes inside the backup directory.
+1. Inspect workspace instructions and identify the requested sessions, canonical notes and changed dependencies. Exclude backups, caches and drafts from normal discovery. Use filename/heading inventories first; read relevant sections, not every transcript format or the entire fact library.
+2. Reuse valid artifacts. Compare explicit input fingerprints and relevant rule versions with the last successful state. Missing/corrupt outputs, new source evidence or a relevant rule change invalidate the affected stage only. Do not mark a stage complete before validation. Do not globally rewrite legacy notes for a style change unless requested.
+3. Back up the selected existing write targets with the helper. Transcribe only missing/invalid source tracks. Preserve overlaps, source labels and raw output; inspect uncertainty windows rather than repeating a full transcription.
+4. Read one compact timestamped transcript for reconstruction. Consult raw segments/audio/frames for disputed roles, names, metrics, code and missing turns. Keep all substantive questions and follow-ups; token savings must not silently drop evidence.
+5. Write Q&A using the output standard. Give each question a stable explicit anchor and evidence time range when available. End with `考察重点`, `主要问题`, `改进方向`, grounded in this session.
+6. Update only relevant primary collection blocks and index entries. If only a source link is new, keep the existing optimized answer. Report inserted/merged/linked/deferred counts separately from source-question counts.
+7. Audit changed notes with `python scripts/audit_interview_notes.py <notes-dir> --name-regex <selection> --require-purple-ai --require-bullets`. Verify the backup manifest and changed collection links/owners separately. The audit checks structure, not factual correctness or semantic equivalence. Resolve failures or explain evidence-dependent exceptions; save successful state last.
 
-### 3. Transcribe locally
-
-- Choose the model from the spoken language, not the requested note language.
-- For Chinese-dominant speech, including Mandarin with English technical terms, use the configured Qwen3-ASR command and `Qwen/Qwen3-ASR-1.7B` by default.
-- For English-dominant speech, use the configured Whisper large-v3 command and force `en` unless automatic detection is intentional.
-- Resolve commands using `QWEN_ASR_COMMAND` and `WHISPER_ASR_COMMAND` when set. Otherwise follow the platform command table in `references/asr-runtime.md`.
-- If the dominant language is unclear, inspect existing notes, metadata, or one short representative sample. Treat mixed speech as Chinese when Mandarin carries most substantive content; otherwise treat it as English. Do not silently run two full passes.
-- Produce TXT, SRT, and structured JSON with timestamps when the selected runtime supports them. Resume from valid outputs instead of retranscribing everything.
-- Enable diarization only when speaker labels materially help and the runtime is configured for it. Treat overlaps and short-turn boundaries as fallible.
-- Inspect audio duration, silence, transcript density, repeated phrases, and timestamps. Treat repeated phrases such as `感谢观看`, `请不吝点赞`, or hundreds of identical tokens as hallucination.
-- If audio is silent or unusable, recover visible questions from video frames only when possible and clearly label the source.
-
-### 4. Reconstruct each interview
-
-Use this source priority:
-
-1. Existing same-session interview note
-2. Valid transcript and speaker sequence
-3. Visible recording frames or coding prompt
-4. Local project, internship, paper, and preparation materials
-5. General technical knowledge
-
-Infer speaker roles from question/answer flow, but do not invent a historical answer. If the answer is absent, write `未保留完整回答`.
-
-### 5. Write structured Q&A
-
-- Follow the template and labels in `references/output-standard.md`.
-- Consolidate repeated follow-ups when they test the same capability.
-- Preserve weaknesses in `我的回答（整理）`; put corrections only in the AI section.
-- For candidate questions, use `我的问题`, `面试官回答`, and `AI 补充的更好问法/追问`.
-- Make optimized answers directly speakable: problem, decision, evidence, tradeoff, boundary, and next step.
-- Start with the answer or conclusion, then include only the reasoning and evidence the question needs. Prefer short sentences and explain uncommon terms on first use.
-- Remove report-style filler, promotional wording, metaphors, and analogies. Read the draft as spoken language and rewrite sentences that sound like a paper or memorized model answer.
-
-### 6. Handle facts and missing experiment details
-
-- Use exact values only when local source material provides them, and keep wording consistent across sessions.
-- When the user confirms an experiment was completed but local logs are unavailable, provide a technically plausible range and label it `AI 推定的合理范围`.
-- Prefer relative ranges and conditions over fake precision, for example `相对 WER 改善约 3%-8%` instead of `提升 6.37%`.
-- Preserve contradictory historical claims in `我的回答（整理）`, then give one normalized range in the AI section.
-- State boundaries such as personal demo vs production, mock tools vs real APIs, preference judging vs factual accuracy, and planned launch vs confirmed production.
-
-### 7. Summarize the session
-
-End every note with:
-
-- `考察重点`: what the interviewer was testing
-- `主要问题`: weaknesses grounded in recorded answers
-- `改进方向`: concrete preparation or experiment actions
-
-For HR/career questions, cover business direction, team/manager, role ownership, transferable capability, constraints, and controllable next actions rather than relying only on salary, location, trend, or conversion rate.
-
-### 8. Update the local cross-session collection
-
-- Follow `references/local-collection.md`.
-- Keep one complete canonical note per interview, then route each retained question to exactly one primary collection document.
-- Deduplicate by tested capability and meaning, not merely identical wording. Merge source-session links and only genuinely new evidence, tradeoffs, or answer improvements.
-- Back up an existing collection document before changing it.
-
-### 9. Sync online only when requested
-
-- Follow `references/lark-sync.md`.
-- Do not install or configure an online connector merely because local notes were organized.
-- Check authentication and scopes before discovery or writes.
-- Route content to an existing same-session, organization, project, paper, or technical-topic document before creating anything.
-- Deduplicate by normalized question and meaning; write only genuinely new or improved blocks.
-- Perform writes serially, read back after each write, and verify purple AI provenance.
-
-### 10. Maintain the collection
-
-- Update a master index with recording sessions, note-only sessions, transcription status, and links.
-- Update the project summary with runtime, output locations, backup path, exceptions, and documentation rules.
-- Keep note filenames stable unless the user explicitly requests renaming.
-- Record which primary collection document owns each retained semantic question.
-
-### 11. Audit before completion
-
-Run:
-
-```text
-python scripts/audit_interview_notes.py <notes-dir> --backup-dir <backup-dir> --require-purple-ai
-```
-
-Resolve every missing section, unmarked AI answer, missing purple label, hallucination phrase, broken local link, or backup mismatch. When online sync was requested, also report each local note, target document, pre/post revision, inserted or replaced block count, deduplicated question count, and failed or deferred write. Never claim online success from process exit code alone; require a successful result and read-back check.
+Report changed outputs, validation, backup location and unresolved evidence briefly. For requested online sync, include document links, pre/post revisions and read-back results. Do not expose local private details in public release notes.

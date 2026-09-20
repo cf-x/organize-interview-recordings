@@ -147,6 +147,24 @@ modelscope download --model Qwen/Qwen3-ForcedAligner-0.6B --local_dir ./Qwen3-Fo
 - [MLX Whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper)
 - [faster-whisper](https://github.com/SYSTRAN/faster-whisper)
 
+## 增量整理与验证
+
+- 入口按转写、笔记、题库、同步分流，只读取当前任务需要的规则。
+- `merge_transcripts.py` 合并已确认的源音轨转写，保留时间戳、重叠和元数据，拒绝覆盖原输出。
+- `workspace_state.py` 提供文件指纹、变更判断、选定文件备份和 SHA-256 核验；验证成功后才保存完成状态。
+- `question_catalog.py` 从指定主题文件提取标题与锚点，检索候选问题；语义去重仍需结合证据判断。
+- 新增或修改的笔记使用 `--require-bullets` 审计关键词列表；历史格式可单独审计，避免每次全量改写。
+- 链接检查包含 Markdown 锚点；`--links-file <path>` 可检查本次更新的题库或索引。它不证明事实正确或语义去重成功。
+- 缺少实验结果时默认待核对，不再套用固定收益区间。
+
+命令与失效条件见 [增量工作流](skill/organize-interview-recordings/references/incremental-workflow.md)。仅本机配置可放在已忽略的 `local-settings.json`；实际资料与处理状态应放在仓库外。
+
+验证辅助脚本（使用合成样例，不需要模型或真实面试数据）：
+
+```bash
+python -m unittest discover -s tests -v
+```
+
 ## 推荐工作流
 
 1. 盘点录音、原笔记、已有 TXT/SRT/JSON 和可用于核验的项目资料。
